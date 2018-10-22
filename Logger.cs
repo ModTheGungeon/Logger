@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ETGMod {
+namespace ModTheGungeon {
     public class Logger {
         public enum LogLevel {
             Error = 0,
