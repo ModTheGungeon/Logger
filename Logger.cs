@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ModTheGungeon {
     public class Logger {
@@ -18,8 +19,9 @@ namespace ModTheGungeon {
 
         public string ID;
 
-        public Logger(string id) {
+        public Logger(string id, bool? write_console = null) {
             ID = id;
+            WriteConsoleLocal = write_console;
         }
 
         public delegate void Subscriber(
@@ -34,40 +36,55 @@ namespace ModTheGungeon {
             string str
         );
 
-        private static Subscriber _Subscribers = null;
-        private LocalSubscriber _LocalSubscribers = null;
+        private static List<Subscriber> _Subscribers = null;
+        private List<LocalSubscriber> _LocalSubscribers = null;
 
         public static void Subscribe(Subscriber sub) {
-            if (_Subscribers == null) _Subscribers = sub;
-            else _Subscribers += sub;
+            if (_Subscribers == null) _Subscribers = new List<Subscriber> { sub };
+            else _Subscribers.Add(sub);
         }
 
         public static void Unsubscribe(Subscriber sub) {
-            _Subscribers -= sub;
+            _Subscribers.Remove(sub);
         }
 
         public void Subscribe(LocalSubscriber sub) {
-            if (_LocalSubscribers == null) _LocalSubscribers = sub;
-            else _LocalSubscribers += sub;
+            if (_LocalSubscribers == null) _LocalSubscribers = new List<LocalSubscriber>{ sub };
+            else _LocalSubscribers.Add(sub);
         }
 
         public void Unsubscribe(LocalSubscriber sub) {
-            _LocalSubscribers -= sub;
+            _LocalSubscribers.Remove(sub);
         }
 
         public bool LogLevelEnabled(LogLevel level) {
             return MaxLogLevel >= level;
         }
 
-        private void _NotifySubscribers(LogLevel level, bool indent, object o) {
-            if (_LocalSubscribers != null) _LocalSubscribers.Invoke(level, indent, o.ToString());
-            if (_Subscribers != null) _Subscribers.Invoke(this, level, indent, o.ToString());
+        public void NotifySubscribers(LogLevel level, bool indent, object o, IList<LocalSubscriber> local_subscriber_blacklist = null, IList<Subscriber> subscriber_blacklist = null) {
+            if (_LocalSubscribers != null) {
+                for (int i = 0; i < _LocalSubscribers.Count; i++) {
+                    if (local_subscriber_blacklist != null && local_subscriber_blacklist.Contains(_LocalSubscribers[i])) continue;
+                    _LocalSubscribers[i].Invoke(level, indent, o.ToString());
+                }
+            }
+            if (_Subscribers != null) {
+                for (int i = 0; i < _Subscribers.Count; i++) {
+                    if (subscriber_blacklist != null && subscriber_blacklist.Contains(_Subscribers[i])) continue;
+                    _Subscribers[i].Invoke(this, level, indent, o.ToString());
+                }
+            }
         }
 
         private string _DebugPrefix = null;
         private string _InfoPrefix = null;
         private string _WarnPrefix = null;
         private string _ErrorPrefix = null;
+
+        public static bool WriteConsoleDefault = true;
+        public bool? WriteConsoleLocal;
+
+        public bool WriteConsole => WriteConsoleLocal ?? WriteConsoleDefault;
 
         public string DebugPrefix {
             get {
@@ -108,7 +125,7 @@ namespace ModTheGungeon {
         public string InfoIndentPrefix {
             get {
                 if (_InfoIndentPrefix != null) return _InfoIndentPrefix;
-                return _InfoIndentPrefix = new String(' ', InfoIndentPrefix.Length);
+                return _InfoIndentPrefix = new String(' ', InfoPrefix.Length);
             }
         }
         public string WarnIndentPrefix {
@@ -171,29 +188,29 @@ namespace ModTheGungeon {
         public void Debug(object o) {
             if (!LogLevelEnabled(LogLevel.Debug)) return;
 
-            Console.WriteLine(String(LogLevel.Debug, o));
-            _NotifySubscribers(LogLevel.Debug, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Debug, o));
+            NotifySubscribers(LogLevel.Debug, false, o);
         }
 
         public void Info(object o) {
             if (!LogLevelEnabled(LogLevel.Info)) return;
 
-            Console.WriteLine(String(LogLevel.Info, o));
-            _NotifySubscribers(LogLevel.Info, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Info, o));
+            NotifySubscribers(LogLevel.Info, false, o);
         }
 
         public void Warn(object o) {
             if (!LogLevelEnabled(LogLevel.Warn)) return;
 
-            Console.WriteLine(String(LogLevel.Warn, o));
-            _NotifySubscribers(LogLevel.Warn, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Warn, o));
+            NotifySubscribers(LogLevel.Warn, false, o);
         }
 
         public void Error(object o, bool @throw = false) {
             if (!LogLevelEnabled(LogLevel.Error)) return;
 
-            Console.WriteLine(String(LogLevel.Error, o));
-            _NotifySubscribers(LogLevel.Error, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Error, o));
+            NotifySubscribers(LogLevel.Error, false, o);
             if (@throw) {
                 throw new Exception(o.ToString());
             }
@@ -202,29 +219,29 @@ namespace ModTheGungeon {
         public void DebugIndent(object o) {
             if (!LogLevelEnabled(LogLevel.Debug)) return;
 
-            Console.WriteLine(String(LogLevel.Debug, o, indent: true));
-            _NotifySubscribers(LogLevel.Debug, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Debug, o, indent: true));
+            NotifySubscribers(LogLevel.Debug, false, o);
         }
 
         public void InfoIndent(object o) {
             if (!LogLevelEnabled(LogLevel.Info)) return;
 
-            Console.WriteLine(String(LogLevel.Info, o, indent: true));
-            _NotifySubscribers(LogLevel.Info, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Info, o, indent: true));
+            NotifySubscribers(LogLevel.Info, false, o);
         }
 
         public void WarnIndent(object o) {
             if (!LogLevelEnabled(LogLevel.Warn)) return;
 
-            Console.WriteLine(String(LogLevel.Warn, o, indent: true));
-            _NotifySubscribers(LogLevel.Warn, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Warn, o, indent: true));
+            NotifySubscribers(LogLevel.Warn, false, o);
         }
 
         public void ErrorIndent(object o) {
             if (!LogLevelEnabled(LogLevel.Error)) return;
 
-            Console.WriteLine(String(LogLevel.Error, o, indent: true));
-            _NotifySubscribers(LogLevel.Error, false, o);
+            if (WriteConsole) Console.WriteLine(String(LogLevel.Error, o, indent: true));
+            NotifySubscribers(LogLevel.Error, false, o);
         }
 
 
